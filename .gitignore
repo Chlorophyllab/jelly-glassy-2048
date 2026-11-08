@@ -1,0 +1,24 @@
+# dependencies
+node_modules/
+
+# electron / build outputs
+dist/
+out/
+release/
+build/
+final/
+final-*/
+builder-debug.yml
+
+# raw AI-generated source images (processed versions live in tiles/)
+tile-*.png
+tile-*.jpeg
+
+# temp / preview files
+_verify-board.png
+icon-preview.png
+液态玻璃风格2048图标.png
+
+# misc
+*.log
+.DS_Store

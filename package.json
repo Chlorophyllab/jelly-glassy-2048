@@ -1,0 +1,44 @@
+{
+  "name": "2048-game",
+  "version": "1.0.0",
+  "description": "2048 Game with save/load functionality",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "28.3.3",
+    "electron-builder": "24.13.3"
+  },
+  "build": {
+    "appId": "com.game.2048",
+    "productName": "2048",
+    "files": [
+      "index.html",
+      "main.js",
+      "icon.ico",
+      "app-icon.png",
+      "tiles/**/*"
+    ],
+    "directories": {
+      "output": "final"
+    },
+    "win": {
+      "target": "portable",
+      "executableName": "2048",
+      "icon": "icon.ico",
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "2048.exe"
+    }
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/cli": "^8.6.0",
+    "@capacitor/core": "^8.6.0"
+  }
+}

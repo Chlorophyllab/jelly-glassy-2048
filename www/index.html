@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2048</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Clear Sans", "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #f2e4ff;
+            color: #6f5a8a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #bg-canvas {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .container {
+            width: 500px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            width: 68px;
+            height: 68px;
+            object-fit: contain;
+            filter: drop-shadow(0 6px 14px rgba(176, 123, 255, 0.35));
+        }
+
+        .scores {
+            display: flex;
+            gap: 10px;
+        }
+
+        .score-box {
+            background: rgba(255, 255, 255, 0.42);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            padding: 8px 20px;
+            border-radius: 16px;
+            text-align: center;
+            min-width: 80px;
+            position: relative;
+            box-shadow: 0 6px 16px rgba(160, 120, 220, 0.18), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+        }
+
+        .score-box .label {
+            color: #a184c9;
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .score-box .value {
+            color: #5b3d8f;
+            font-size: 22px;
+            font-weight: 800;
+        }
+
+        .score-addition {
+            position: absolute;
+            right: 10px;
+            top: 4px;
+            color: #ff5f9e;
+            font-size: 20px;
+            font-weight: 900;
+            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+            animation: scoreFloat 600ms ease-in;
+            animation-fill-mode: forwards;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        @keyframes scoreFloat {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-30px); }
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .intro {
+            font-size: 16px;
+            color: #8a6bb0;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #ff8fb8 0%, #b07bff 100%);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 999px;
+            padding: 10px 22px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 6px 16px rgba(176, 123, 255, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+            transition: transform 0.15s ease, box-shadow 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 22px rgba(176, 123, 255, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+        }
+
+        button:active {
+            transform: translateY(0) scale(0.95);
+        }
+
+        .game-container {
+            background: rgba(255, 255, 255, 0.32);
+            backdrop-filter: blur(26px) saturate(1.3);
+            -webkit-backdrop-filter: blur(26px) saturate(1.3);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: 22px;
+            padding: 15px;
+            position: relative;
+            box-shadow: 0 24px 48px rgba(170, 120, 220, 0.28), inset 0 1px 2px rgba(255, 255, 255, 0.65);
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            position: relative;
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.20);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -8px 16px rgba(150, 110, 200, 0.07);
+        }
+
+        .num-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .game-message {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 22px;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease-in-out;
+            z-index: 100;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .game-message.active {
+            display: flex;
+        }
+
+        .game-message p {
+            font-size: 56px;
+            font-weight: 900;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #ff6fb0, #b07bff 55%, #4fb6ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            filter: drop-shadow(0 3px 8px rgba(176, 123, 255, 0.3));
+        }
+
+        .game-message .actions {
+            display: flex;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="bg-canvas"></canvas>
+    <div class="container">
+        <div class="header">
+            <img class="logo" src="app-icon.png" alt="2048">
+            <div class="scores">
+                <div class="score-box" id="score-box">
+                    <div class="label">分数</div>
+                    <div class="value" id="score">0</div>
+                </div>
+                <div class="score-box">
+                    <div class="label">最高分</div>
+                    <div class="value" id="best-score">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <p class="intro">合并数字，到达 <b>2048</b>！</p>
+            <div class="buttons">
+                <button id="new-game-btn">新游戏</button>
+                <button id="undo-btn">撤销</button>
+            </div>
+        </div>
+
+        <div class="game-container">
+            <div class="grid-container" id="grid">
+                <div class="cell"></div>
+                <div class="cell"></div>
+                <div class="cell"></div>
+                <div class="cell"></div>
+                <div class="cell"></div>
+                <div class="cell"></div>
+                <div class="cell"></div>
+                <div class="cell"></div>
+                <div class="cell"></div>
+                <div class="cell"></div>
+                <div class="cell"></div>
+                <div class="cell"></div>
+                <div class="cell"></div>
+                <div class="cell"></div>
+                <div class="cell"></div>
+                <div class="cell"></div>
+            </div>
+            <canvas id="num-canvas" class="num-canvas"></canvas>
+            <div class="game-message" id="game-message">
+                <p id="message-text"></p>
+                <div class="actions">
+                    <button id="try-again-btn">再试一次</button>
+                    <button id="keep-going-btn" style="display:none;">继续游戏</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SLIDE_MS = 150;
+        const DPR_MAX = 2;
+
+        function numberFontSize(value, cellSize) {
+            if (value < 128) return cellSize * 0.42;
+            if (value <= 512) return cellSize * 0.327;
+            if (value <= 2048) return cellSize * 0.26;
+            return cellSize * 0.206;
+        }
+
+        function clamp01(t) { return t < 0 ? 0 : (t > 1 ? 1 : t); }
+        function easeOutCubic(t) { const u = 1 - t; return 1 - u * u * u; }
+        function easeOutBack(t) {
+            const c1 = 1.70158, c3 = c1 + 1;
+            return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+        }
+
+        function layoutBoard() {
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+            const headerH = document.querySelector('.header').offsetHeight;
+            const controlsH = document.querySelector('.controls').offsetHeight;
+            const availW = vw - 100;
+            const availH = vh - headerH - controlsH - 80;
+            const board = Math.max(240, Math.min(availW, availH));
+            document.querySelector('.container').style.width = board + 'px';
+        }
+
+        class GlassRenderer {
+            constructor(game) {
+                this.game = game;
+                this.container = document.querySelector('.game-container');
+                this.bgCanvas = document.getElementById('bg-canvas');
+                this.bgCtx = this.bgCanvas.getContext('2d');
+                this.tileCanvas = document.getElementById('num-canvas');
+                this.tileCtx = this.tileCanvas.getContext('2d');
+                this.images = {};
+                for (const v of [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384]) {
+                    const img = new Image();
+                    img.src = 'tiles/' + v + '.png';
+                    this.images[v] = img;
+                }
+                this.resize();
+            }
+
+            resize() {
+                layoutBoard();
+                const dpr = Math.min(window.devicePixelRatio || 1, DPR_MAX);
+                this.dpr = dpr;
+                this.viewW = window.innerWidth;
+                this.viewH = window.innerHeight;
+                this.bgCanvas.width = Math.round(this.viewW * dpr);
+                this.bgCanvas.height = Math.round(this.viewH * dpr);
+                this.bgCanvas.style.width = this.viewW + 'px';
+                this.bgCanvas.style.height = this.viewH + 'px';
+
+                const rect = this.container.getBoundingClientRect();
+                this.tileCanvas.width = Math.round(rect.width * dpr);
+                this.tileCanvas.height = Math.round(rect.height * dpr);
+            }
+
+            drawBackground(now) {
+                const ctx = this.bgCtx;
+                const w = this.bgCanvas.width;
+                const h = this.bgCanvas.height;
+                const t = now / 1000;
+
+                const g = ctx.createLinearGradient(0, 0, w, h);
+                g.addColorStop(0, '#ffe9f3');
+                g.addColorStop(0.28, '#f2e4ff');
+                g.addColorStop(0.55, '#e3f1ff');
+                g.addColorStop(0.78, '#dcf5f0');
+                g.addColorStop(1, '#fff3dd');
+                ctx.fillStyle = g;
+                ctx.fillRect(0, 0, w, h);
+
+                const blobs = [
+                    { x: -70, y: -90, r: 170, color: '255,158,205', ampX: 46, ampY: 34, period: 16, phase: 0 },
+                    { x: w + 90, y: h + 130, r: 190, color: '167,139,250', ampX: -36, ampY: -44, period: 20, phase: 0.4 },
+                    { x: -110, y: h * 0.82, r: 140, color: '111,214,255', ampX: 46, ampY: 34, period: 18, phase: 2.0 },
+                    { x: w + 110, y: h * 0.16, r: 150, color: '255,209,102', ampX: -36, ampY: -44, period: 22, phase: 1.2 }
+                ];
+                for (const b of blobs) {
+                    const prog = Math.sin(t * 2 * Math.PI / b.period + b.phase * 2 * Math.PI);
+                    const bx = b.x + b.ampX * prog;
+                    const by = b.y + b.ampY * prog;
+                    const rg = ctx.createRadialGradient(bx, by, 0, bx, by, b.r);
+                    rg.addColorStop(0, `rgba(${b.color},0.38)`);
+                    rg.addColorStop(0.55, `rgba(${b.color},0.14)`);
+                    rg.addColorStop(1, `rgba(${b.color},0)`);
+                    ctx.fillStyle = rg;
+                    ctx.fillRect(0, 0, w, h);
+                }
+            }
+
+            render(now) {
+                this.drawBackground(now);
+                const m = this.game.metrics();
+                const items = this.game.computeDrawItems(now);
+                this.drawTiles(items);
+            }
+
+            drawTiles(items) {
+                const ctx = this.tileCtx;
+                const dpr = this.dpr;
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                ctx.clearRect(0, 0, this.tileCanvas.width / dpr, this.tileCanvas.height / dpr);
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+
+                for (const it of items) {
+                    if (!it.value) continue;
+                    const cx = it.x + it.size / 2;
+                    const cy = it.y + it.size / 2;
+                    ctx.save();
+                    ctx.globalAlpha = it.opacity;
+                    ctx.translate(cx, cy);
+                    ctx.scale(it.scale, it.scale);
+
+                    const img = this.images[it.value];
+                    if (img && img.complete && img.naturalWidth > 0) {
+                        ctx.drawImage(img, -it.size / 2, -it.size / 2, it.size, it.size);
+                    } else if (it.value > 2048) {
+                        this.drawFallbackTile(ctx, it.size);
+                        this.drawNumberText(ctx, it.value, it.size);
+                    }
+                    ctx.restore();
+                }
+                ctx.globalAlpha = 1;
+            }
+
+            drawFallbackTile(ctx, size) {
+                const r = size * 0.18;
+                const g = ctx.createLinearGradient(-size / 2, -size / 2, size / 2, size / 2);
+                g.addColorStop(0, '#c9cfff');
+                g.addColorStop(1, '#9aa6ff');
+                ctx.fillStyle = g;
+                this.roundedRect(ctx, -size / 2, -size / 2, size, size, r);
+                ctx.fill();
+            }
+
+            drawNumberText(ctx, value, size) {
+                const fs = numberFontSize(value, size);
+                ctx.font = `800 ${fs}px "Clear Sans", "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif`;
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.shadowColor = 'rgba(90,40,140,0.25)';
+                ctx.shadowBlur = 2;
+                ctx.shadowOffsetY = 1;
+                ctx.fillText(String(value), 0, 0);
+            }
+
+            roundedRect(ctx, x, y, w, h, r) {
+                ctx.beginPath();
+                ctx.moveTo(x + r, y);
+                ctx.arcTo(x + w, y, x + w, y + h, r);
+                ctx.arcTo(x + w, y + h, x, y + h, r);
+                ctx.arcTo(x, y + h, x, y, r);
+                ctx.arcTo(x, y, x + w, y, r);
+                ctx.closePath();
+            }
+        }
+
+        class Game {
+            constructor() {
+                this.size = 4;
+                this.grid = [];
+                this.tiles = [];
+                this.ghosts = [];
+                this.score = 0;
+                this.bestScore = parseInt(localStorage.getItem('bestScore')) || 0;
+                this.won = false;
+                this.over = false;
+                this.keepPlaying = false;
+                this.previousState = null;
+
+                this.init();
+                this.loadGame();
+                this.bindEvents();
+                this.renderer = new GlassRenderer(this);
+                this.renderAll(false);
+                this.startLoop();
+
+                if (this.over) {
+                    this.showMessage('游戏结束！', false);
+                } else if (this.won && !this.keepPlaying) {
+                    this.showMessage('你赢了！', true);
+                }
+            }
+
+            makeTile(value, r, c) {
+                return { value, r, c, isNew: false, mergedFrom: null, prevPos: null };
+            }
+
+            init() {
+                this.grid = this.emptyGrid();
+                this.tiles = [];
+                this.score = 0;
+                this.won = false;
+                this.over = false;
+                this.keepPlaying = false;
+                this.addRandomTile();
+                this.addRandomTile();
+            }
+
+            emptyGrid() {
+                return Array(this.size).fill(null).map(() => Array(this.size).fill(null));
+            }
+
+            addRandomTile() {
+                const empty = [];
+                for (let r = 0; r < this.size; r++) {
+                    for (let c = 0; c < this.size; c++) {
+                        if (!this.grid[r][c]) {
+                            empty.push({ r, c });
+                        }
+                    }
+                }
+                if (empty.length === 0) return;
+
+                const { r, c } = empty[Math.floor(Math.random() * empty.length)];
+                const tile = this.makeTile(Math.random() < 0.9 ? 2 : 4, r, c);
+                tile.isNew = true;
+                this.grid[r][c] = tile;
+                this.tiles.push(tile);
+            }
+
+            saveState() {
+                this.previousState = {
+                    grid: this.gridValues(),
+                    score: this.score
+                };
+            }
+
+            gridValues() {
+                return this.grid.map(row => row.map(t => t ? t.value : 0));
+            }
+
+            undo() {
+                if (!this.previousState) return;
+                this.setGridFromValues(this.previousState.grid);
+                this.score = this.previousState.score;
+                this.previousState = null;
+                this.over = false;
+                this.updateScores();
+                this.renderAll(false);
+                this.saveGame();
+            }
+
+            setGridFromValues(values) {
+                this.grid = this.emptyGrid();
+                this.tiles = [];
+                for (let r = 0; r < this.size; r++) {
+                    for (let c = 0; c < this.size; c++) {
+                        if (values[r][c]) {
+                            const tile = this.makeTile(values[r][c], r, c);
+                            this.grid[r][c] = tile;
+                            this.tiles.push(tile);
+                        }
+                    }
+                }
+            }
+
+            move(direction) {
+                if (this.over && !this.keepPlaying) return;
+
+                this.saveState();
+                this.ghosts = [];
+
+                for (const tile of this.tiles) {
+                    tile.prevPos = { r: tile.r, c: tile.c };
+                    tile.mergedFrom = null;
+                }
+
+                const vectors = {
+                    up: { r: -1, c: 0 },
+                    down: { r: 1, c: 0 },
+                    left: { r: 0, c: -1 },
+                    right: { r: 0, c: 1 }
+                };
+                const vector = vectors[direction];
+                const traversals = this.buildTraversals(vector);
+
+                let moved = false;
+                let scoreGain = 0;
+
+                traversals.rows.forEach(r => {
+                    traversals.cols.forEach(c => {
+                        const tile = this.grid[r][c];
+                        if (!tile) return;
+
+                        const { farthest, next } = this.findFarthest(r, c, vector);
+                        const nextTile = next ? this.grid[next.r][next.c] : null;
+
+                        if (nextTile && nextTile.value === tile.value && !nextTile.mergedFrom) {
+                            const merged = this.makeTile(tile.value * 2, next.r, next.c);
+                            merged.mergedFrom = [tile, nextTile];
+                            this.grid[next.r][next.c] = merged;
+                            this.grid[r][c] = null;
+                            this.tiles = this.tiles.filter(t => t !== tile && t !== nextTile);
+                            this.tiles.push(merged);
+                            scoreGain += merged.value;
+
+                            if (merged.value === 2048 && !this.won) {
+                                this.won = true;
+                            }
+                            moved = true;
+                        } else if (farthest.r !== r || farthest.c !== c) {
+                            this.grid[farthest.r][farthest.c] = tile;
+                            this.grid[r][c] = null;
+                            tile.r = farthest.r;
+                            tile.c = farthest.c;
+                            moved = true;
+                        }
+                    });
+                });
+
+                if (!moved) {
+                    this.previousState = null;
+                    return;
+                }
+
+                this.score += scoreGain;
+                if (this.score > this.bestScore) {
+                    this.bestScore = this.score;
+                    localStorage.setItem('bestScore', this.bestScore);
+                }
+
+                this.addRandomTile();
+                this.checkGameOver();
+                this.updateScores(scoreGain);
+                this.animateMove();
+                this.saveGame();
+
+                if (this.over) {
+                    this.showMessage('游戏结束！', false);
+                } else if (this.won && !this.keepPlaying) {
+                    this.showMessage('你赢了！', true);
+                }
+            }
+
+            buildTraversals(vector) {
+                const traversals = { rows: [], cols: [] };
+                for (let i = 0; i < this.size; i++) {
+                    traversals.rows.push(i);
+                    traversals.cols.push(i);
+                }
+                if (vector.r === 1) traversals.rows.reverse();
+                if (vector.c === 1) traversals.cols.reverse();
+                return traversals;
+            }
+
+            findFarthest(r, c, vector) {
+                let previous;
+                let current = { r, c };
+
+                do {
+                    previous = current;
+                    current = { r: previous.r + vector.r, c: previous.c + vector.c };
+                } while (
+                    current.r >= 0 && current.r < this.size &&
+                    current.c >= 0 && current.c < this.size &&
+                    !this.grid[current.r][current.c]
+                );
+
+                return {
+                    farthest: previous,
+                    next: (current.r >= 0 && current.r < this.size &&
+                           current.c >= 0 && current.c < this.size) ? current : null
+                };
+            }
+
+            checkGameOver() {
+                if (this.movesAvailable()) return;
+                this.over = true;
+            }
+
+            movesAvailable() {
+                for (let r = 0; r < this.size; r++) {
+                    for (let c = 0; c < this.size; c++) {
+                        const tile = this.grid[r][c];
+                        if (!tile) return true;
+
+                        const neighbors = [
+                            { r: r - 1, c },
+                            { r: r + 1, c },
+                            { r, c: c - 1 },
+                            { r, c: c + 1 }
+                        ];
+
+                        for (const n of neighbors) {
+                            if (n.r >= 0 && n.r < this.size && n.c >= 0 && n.c < this.size) {
+                                const other = this.grid[n.r][n.c];
+                                if (other && other.value === tile.value) return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+
+            metrics() {
+                const container = document.getElementById('num-canvas');
+                const padding = 15;
+                const gap = 15;
+                const measured = container.clientWidth;
+                const totalWidth = measured >= 200 ? measured : 470;
+                const cellSize = (totalWidth - padding * 2 - gap * (this.size - 1)) / this.size;
+                return { padding, gap, cellSize };
+            }
+
+            pos(r, c) {
+                const { padding, gap, cellSize } = this.metrics();
+                return {
+                    x: padding + c * (cellSize + gap),
+                    y: padding + r * (cellSize + gap)
+                };
+            }
+
+            startLoop() {
+                const loop = (now) => {
+                    this.renderer.render(now);
+                    this.raf = requestAnimationFrame(loop);
+                };
+                this.raf = requestAnimationFrame(loop);
+            }
+
+            lerpPos(from, to, t) {
+                return { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t };
+            }
+
+            animateMove() {
+                const now = performance.now();
+                for (const tile of this.tiles) {
+                    const target = this.pos(tile.r, tile.c);
+                    if (tile.mergedFrom) {
+                        for (const source of tile.mergedFrom) {
+                            const from = this.pos(source.prevPos.r, source.prevPos.c);
+                            this.ghosts.push({ value: source.value, from, to: target, t0: now, dur: SLIDE_MS });
+                        }
+                        tile.anim = { from: target, to: target, t0: now, dur: 0 };
+                        tile.appear = { t0: now + SLIDE_MS, dur: 320 };
+                    } else if (tile.prevPos && (tile.prevPos.r !== tile.r || tile.prevPos.c !== tile.c)) {
+                        const from = this.pos(tile.prevPos.r, tile.prevPos.c);
+                        tile.anim = { from, to: target, t0: now, dur: SLIDE_MS };
+                        tile.appear = null;
+                    } else if (tile.isNew) {
+                        tile.anim = { from: target, to: target, t0: now, dur: 0 };
+                        tile.appear = { t0: now, dur: 280 };
+                    } else {
+                        tile.anim = { from: target, to: target, t0: now, dur: 0 };
+                        tile.appear = null;
+                    }
+                    tile.isNew = false;
+                    tile.prevPos = null;
+                }
+            }
+
+            computeDrawItems(now) {
+                const m = this.metrics();
+                const items = [];
+
+                for (const g of this.ghosts) {
+                    const t = clamp01((now - g.t0) / g.dur);
+                    const p = this.lerpPos(g.from, g.to, easeOutCubic(t));
+                    items.push({ value: g.value, x: p.x, y: p.y, size: m.cellSize, scale: 1, opacity: 1 - t });
+                }
+                this.ghosts = this.ghosts.filter(g => now - g.t0 < g.dur);
+
+                for (const tile of this.tiles) {
+                    let x, y, scale = 1;
+                    const target = this.pos(tile.r, tile.c);
+                    if (tile.anim && tile.anim.dur > 0) {
+                        const t = clamp01((now - tile.anim.t0) / tile.anim.dur);
+                        const p = this.lerpPos(tile.anim.from, tile.anim.to, easeOutCubic(t));
+                        x = p.x; y = p.y;
+                    } else {
+                        x = target.x; y = target.y;
+                    }
+                    if (tile.appear) {
+                        const t = clamp01((now - tile.appear.t0) / tile.appear.dur);
+                        scale = easeOutBack(t);
+                    }
+                    items.push({ value: tile.value, x, y, size: m.cellSize, scale, opacity: 1 });
+                }
+                return items;
+            }
+
+            renderAll(animateNew) {
+                const now = performance.now();
+                this.ghosts = [];
+                for (const tile of this.tiles) {
+                    const target = this.pos(tile.r, tile.c);
+                    tile.anim = { from: target, to: target, t0: now, dur: 0 };
+                    tile.appear = (animateNew && tile.isNew) ? { t0: now, dur: 280 } : null;
+                    tile.isNew = false;
+                    tile.prevPos = null;
+                }
+                this.updateScores();
+            }
+
+            updateScores(scoreGain) {
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('best-score').textContent = this.bestScore;
+
+                if (scoreGain > 0) {
+                    const scoreBox = document.getElementById('score-box');
+                    const addition = document.createElement('div');
+                    addition.className = 'score-addition';
+                    addition.textContent = `+${scoreGain}`;
+                    scoreBox.appendChild(addition);
+                    setTimeout(() => addition.remove(), 650);
+                }
+            }
+
+            showMessage(text, won) {
+                const messageEl = document.getElementById('game-message');
+                const messageText = document.getElementById('message-text');
+                const keepGoingBtn = document.getElementById('keep-going-btn');
+
+                messageText.textContent = text;
+                messageEl.classList.add('active');
+                keepGoingBtn.style.display = won ? 'block' : 'none';
+            }
+
+            hideMessage() {
+                document.getElementById('game-message').classList.remove('active');
+            }
+
+            saveGame() {
+                const gameState = {
+                    grid: this.gridValues(),
+                    score: this.score,
+                    won: this.won,
+                    over: this.over,
+                    keepPlaying: this.keepPlaying
+                };
+                localStorage.setItem('gameState', JSON.stringify(gameState));
+            }
+
+            loadGame() {
+                const saved = localStorage.getItem('gameState');
+                if (!saved) return;
+
+                try {
+                    const gameState = JSON.parse(saved);
+                    this.setGridFromValues(gameState.grid);
+                    this.score = gameState.score;
+                    this.won = gameState.won;
+                    this.over = gameState.over;
+                    this.keepPlaying = gameState.keepPlaying;
+                } catch (e) {
+                    console.error('Failed to load game:', e);
+                }
+            }
+
+            newGame() {
+                this.hideMessage();
+                this.init();
+                this.renderAll(true);
+                this.saveGame();
+            }
+
+            keepGoing() {
+                this.keepPlaying = true;
+                this.hideMessage();
+                this.saveGame();
+            }
+
+            bindEvents() {
+                document.addEventListener('keydown', (e) => {
+                    const modifiers = e.altKey || e.ctrlKey || e.metaKey || e.shiftKey;
+                    if (modifiers) return;
+
+                    const mapped = {
+                        38: 'up',
+                        40: 'down',
+                        37: 'left',
+                        39: 'right',
+                        87: 'up',
+                        83: 'down',
+                        65: 'left',
+                        68: 'right'
+                    };
+
+                    const direction = mapped[e.which];
+                    if (direction) {
+                        e.preventDefault();
+                        this.move(direction);
+                    }
+                });
+
+                let touchStartX, touchStartY;
+
+                document.addEventListener('touchstart', (e) => {
+                    touchStartX = e.touches[0].clientX;
+                    touchStartY = e.touches[0].clientY;
+                });
+
+                document.addEventListener('touchend', (e) => {
+                    if (touchStartX === undefined) return;
+
+                    const dx = e.changedTouches[0].clientX - touchStartX;
+                    const dy = e.changedTouches[0].clientY - touchStartY;
+                    const absDx = Math.abs(dx);
+                    const absDy = Math.abs(dy);
+
+                    if (Math.max(absDx, absDy) > 30) {
+                        const direction = absDx > absDy
+                            ? (dx > 0 ? 'right' : 'left')
+                            : (dy > 0 ? 'down' : 'up');
+                        this.move(direction);
+                    }
+
+                    touchStartX = touchStartY = undefined;
+                });
+
+                document.getElementById('new-game-btn').addEventListener('click', () => this.newGame());
+                document.getElementById('undo-btn').addEventListener('click', () => this.undo());
+                document.getElementById('try-again-btn').addEventListener('click', () => this.newGame());
+                document.getElementById('keep-going-btn').addEventListener('click', () => this.keepGoing());
+
+                window.addEventListener('resize', () => {
+                    this.renderer.resize();
+                    this.renderAll(false);
+                });
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            new Game();
+        });
+    </script>
+</body>
+</html>
